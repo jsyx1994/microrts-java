@@ -42,6 +42,7 @@ public class GymSocketAI extends AIWithComputationBudget {
     Socket socket = null;
     BufferedReader in_pipe = null;
     PrintWriter out_pipe = null;
+    float last_eval = .0f;
 
     public GymSocketAI(UnitTypeTable a_utt) {
         super(100, -1);
@@ -143,7 +144,7 @@ public class GymSocketAI extends AIWithComputationBudget {
 //            if (DEBUG>=1) System.out.println("GymSocketAI: reset command received");
 //            acknowledge();
 
-            sendGameState(gs, player, true, false);
+            sendGameState(gs, player, true, 0);
 
 
         } catch (Exception e) {
@@ -152,14 +153,16 @@ public class GymSocketAI extends AIWithComputationBudget {
 
     }
 
-    public void sendGameState(GameState gs, int player, boolean reset, boolean done) throws Exception {
+    public void sendGameState(GameState gs, int player, boolean reset, int done) throws Exception {
 //        Writer myWriter = new OutputStreamWriter(OutputStream.nullOutputStream());
-        SimpleSqrtEvaluationFunction simpleSqrtEvaluationFunction = new SimpleSqrtEvaluationFunction();
+        SimpleSqrtEvaluationFunction2 simpleSqrtEvaluationFunction = new SimpleSqrtEvaluationFunction2();
         int maxPlayer = player;
         int minPlayer = maxPlayer == 1 ? 0 : 1;
 
         //reward design need to consider further!
-        double reward = simpleSqrtEvaluationFunction.evaluate(maxPlayer ,minPlayer, gs);
+        float eval = simpleSqrtEvaluationFunction.evaluate(maxPlayer ,minPlayer, gs);
+        float reward = (eval - last_eval) - 0.5f;
+        last_eval = eval;
 
         if (reset)
             out_pipe.append("reset " + player + "\n");
@@ -179,16 +182,20 @@ public class GymSocketAI extends AIWithComputationBudget {
             ;
         } else if (communication_language == LANGUAGE_JSON) {
             List<Pair<Unit, List<UnitAction>>> validActions;
-            try {
-                PlayerActionGenerator playerActionGenerator = new PlayerActionGenerator(gs, player);
-                validActions = playerActionGenerator.getChoices();
-            } catch (Exception e) {
-                validActions = new ArrayList<>();
-            }
+//            try {
+//                PlayerActionGenerator playerActionGenerator = new PlayerActionGenerator(gs, player);
+//                validActions = playerActionGenerator.getChoices();
+//            } catch (Exception e) {
+//                validActions = new ArrayList<>();
+//            }
+            PlayerActionGenerator playerActionGenerator = new PlayerActionGenerator(gs, player);
+            validActions = playerActionGenerator.getChoices();
 
 //            PlayerActionGenerator playerActionGenerator = new PlayerActionGenerator(gs, player);
             out_pipe.write("{");
             // add your needs here!
+            out_pipe.write("\"winner\":" + gs.winner() + ",");
+
             out_pipe.write("\"reward\":" + reward + ",");
             out_pipe.write("\"done\":" + done + ",");
             out_pipe.write("\"validActions\":");

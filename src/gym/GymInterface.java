@@ -85,7 +85,9 @@ public class GymInterface {
             PhysicalGameState pgs = PhysicalGameState.load(map, utt);
             GameState gs = new GameState(pgs, utt);
 
-            boolean gameover;
+            boolean gameover=false;
+            boolean timeup=false;
+
             ai1.reset(gs, 0);
             ai2.reset();
             JFrame w = null;
@@ -97,7 +99,7 @@ public class GymInterface {
 //        ai1.preGameAnalysis(gs, 1000, ".");
 //        ai2.preGameAnalysis(gs, 1000, ".");
 
-            boolean done = false;   //gym signal
+            boolean done = false;
             long nextTimeToUpdate = System.currentTimeMillis() + period;
             do {
                 if (System.currentTimeMillis() >= nextTimeToUpdate) {
@@ -108,8 +110,13 @@ public class GymInterface {
 
                     // simulate:
                     gameover = gs.cycle();
-                    done = gameover || gs.getTime() >= maxCycles;
-                    ai1.sendGameState(gs, 0, false, done);
+                    timeup = gs.getTime() >= maxCycles;
+                    
+                    //judging
+                    done = gameover || timeup;
+
+                    ai1.sendGameState(gs, 0, false, 0); // continue
+
                     if (render==1)
                         w.repaint();
                     nextTimeToUpdate += period;
@@ -122,8 +129,16 @@ public class GymInterface {
                 }
             } while (!done);
 
+            if (timeup){
+                ai1.sendGameState(gs, 0, false, 2);  // time up end
+            }
+            else if (gameover){
+                ai1.sendGameState(gs, 0, false, 1); // truly end
+            }
 //            System.out.println("Done");
-            ai1.send_winner(gs);
+            ai1.getAction(0, gs);
+
+//            ai1.send_winner(gs);
 //            ai1.close();
             if (render==1)
                 w.dispose();
@@ -140,7 +155,8 @@ public class GymInterface {
             PhysicalGameState pgs = PhysicalGameState.load(map, utt);
             GameState gs = new GameState(pgs, utt);
 
-            boolean gameover;
+            boolean gameover=false;
+            boolean timeup=false;
             ai1.reset(gs, 0);
             ai2.reset(gs, 1);
             JFrame w = null;
@@ -163,9 +179,14 @@ public class GymInterface {
 
                     // simulate:
                     gameover = gs.cycle();
-                    done = gameover || gs.getTime() >= maxCycles;
-                    ai1.sendGameState(gs, 0, false, done);
-                    ai2.sendGameState(gs, 1, false, done);
+                    timeup = gs.getTime() >= maxCycles;
+
+                    //judging
+                    done = gameover || timeup;
+
+                    ai1.sendGameState(gs, 0, false, 0); // continue
+                    ai2.sendGameState(gs, 1, false, 0);
+
                     if (render==1)
                         w.repaint();
                     nextTimeToUpdate += period;
@@ -178,9 +199,21 @@ public class GymInterface {
                 }
             } while (!done);
 
+            if (timeup){
+                ai1.sendGameState(gs, 0, false, 2);  // time up
+                ai2.sendGameState(gs, 1, false, 2);
+            }
+            else if (gameover){
+                ai1.sendGameState(gs, 0, false, 1); // truly end
+                ai2.sendGameState(gs, 1, false, 1);
+
+            }
+            ai1.getAction(0, gs);
+            ai2.getAction(1, gs);
+
 //            System.out.println("Done");
-            ai1.send_winner(gs);
-            ai2.send_winner(gs);
+//            ai1.send_winner(gs);
+//            ai2.send_winner(gs);
 //            ai1.close();
             if (render==1)
                 w.dispose();
@@ -252,6 +285,66 @@ public class GymInterface {
         }
     }
 
+//    private static void  builtInVsSocket(UnitTypeTable utt) throws Exception {
+//        GymSocketAI ai2 = new GymSocketAI(timeBudget, 0, "127.0.0.1", (int) port2, GymSocketAI.LANGUAGE_JSON, utt);
+//        AI ai1 = new PassiveAI();
+//        switch (ai1_type){
+//            case "WorkerRush"   : ai1 = new WorkerRush(utt);    break;
+//            case "Random"       : ai1 = new RandomAI();         break;
+//            case "RandomBiased" : ai1 = new RandomBiasedAI(utt);break;
+//            case "NaiveMCTS"    : ai1 = new NaiveMCTS(utt);     break;
+////            default:            : ai2 = new PassiveAI();        break;
+//        }
+//
+//        for (int i = 0; i < maxEpisodes; i++) {
+//            PhysicalGameState pgs = PhysicalGameState.load(map, utt);
+//            GameState gs = new GameState(pgs, utt);
+//
+//            boolean gameover;
+//            ai1.reset();
+//            ai2.reset(gs, 0);
+//            JFrame w = null;
+//            if (render==1){
+//                w = PhysicalGameStatePanel.newVisualizer(gs, 640, 640, false, PhysicalGameStatePanel.COLORSCHEME_BLACK);
+//            }
+////        JFrame w = PhysicalGameStatePanel.newVisualizer(gs,640,640,false,PhysicalGameStatePanel.COLORSCHEME_WHITE);
+//
+////        ai1.preGameAnalysis(gs, 1000, ".");
+////        ai2.preGameAnalysis(gs, 1000, ".");
+//
+//            boolean done = false;   //gym signal
+//            long nextTimeToUpdate = System.currentTimeMillis() + period;
+//            do {
+//                if (System.currentTimeMillis() >= nextTimeToUpdate) {
+//                    PlayerAction pa1 = ai1.getAction(0, gs);
+//                    PlayerAction pa2 = ai2.getAction(1, gs);
+//                    gs.issueSafe(pa1);
+//                    gs.issueSafe(pa2);
+//
+//                    // simulate:
+//                    gameover = gs.cycle();
+//                    done = gameover || gs.getTime() >= maxCycles;
+//                    ai2.sendGameState(gs, 0, false, done);
+//                    if (render==1)
+//                        w.repaint();
+//                    nextTimeToUpdate += period;
+//                } else {
+//                    try {
+//                        Thread.sleep(1);
+//                    } catch (Exception e) {
+//                        e.printStackTrace();
+//                    }
+//                }
+//            } while (!done);
+//
+////            System.out.println("Done");
+//            ai2.send_winner(gs);
+////            ai1.close();
+//            if (render==1)
+//                w.dispose();
+//        }
+//    }
+
     public static void main(String[] args) throws Exception {
         parseArgs(args);
         //        AI ai1 = new WorkerRush(utt, new BFSPathFinding());
@@ -274,6 +367,8 @@ public class GymInterface {
             socketVSSocket(utt);
         } else if (!ai1_type.equals("socketAI") && !ai2_type.equals("socketAI")) {
             builtInVSBuiltIn(utt);
+        } else if (!ai1_type.equals("socketAI") && ai2_type.equals("socketAI")){
+//            builtInVsSocket(utt);
         }
 
 //        ai1.reset();
